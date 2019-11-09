@@ -199,11 +199,11 @@ const Game = React.forwardRef(function Game(
     gameState.playerToMove === GAME_ENDED
       ? []
       : gameState.myTray.filter(
-          tile =>
-            ![...pendingMove.tiles, ...tilesToExchange].some(
-              pmt => pmt.id === tile.id,
-            ),
-        );
+        tile =>
+          ![...pendingMove.tiles, ...tilesToExchange].some(
+            pmt => pmt.id === tile.id,
+          ),
+      );
 
   const performPendingMove = (): void => {
     dispatch(pendingMove);
@@ -465,6 +465,7 @@ const Game = React.forwardRef(function Game(
 
   const handleKeyDown = (evt: React.KeyboardEvent): void => {
     if (evt.key === "Backspace") {
+      evt.preventDefault();
       if (isExchangingTiles) {
         if (!tilesToExchange.length) return;
         const newTTX = [...tilesToExchange];
@@ -483,6 +484,7 @@ const Game = React.forwardRef(function Game(
     }
 
     if (evt.key === "Enter") {
+      evt.preventDefault();
       if (isExchangingTiles && tilesToExchange.length) performTileExchange();
       else if (legalMove) performPendingMove();
       return;
@@ -586,8 +588,8 @@ const Game = React.forwardRef(function Game(
         const wordCls = gameState.rules.acceptInvalidWords
           ? undefined
           : w.valid
-          ? "word"
-          : "non-word";
+            ? "word"
+            : "non-word";
         return (
           <span key={idx} className={wordCls}>
             {w.word} ({w.score}){idx === a.length - 1 ? "" : ","}
@@ -597,16 +599,16 @@ const Game = React.forwardRef(function Game(
       {scoredPendingMove.illegalReasons.length ? " | " : null}
       {scoredPendingMove.illegalReasons.length
         ? scoredPendingMove.illegalReasons.map((ir, idx, a) => (
-            <span className="non-word" key={idx}>
-              {ir.description}
-              {idx === a.length - 1 ? "" : ", "}
-            </span>
-          ))
+          <span className="non-word" key={idx}>
+            {ir.description}
+            {idx === a.length - 1 ? "" : ", "}
+          </span>
+        ))
         : null}
     </div>
   ) : (
-    <div>&nbsp;</div>
-  );
+      <div>&nbsp;</div>
+    );
 
   const playerAnnotations = [...gameState.players.entries()].map(([player]) => {
     if (gameState.playerToMove === player)
@@ -643,10 +645,10 @@ const Game = React.forwardRef(function Game(
             <div>
               {gameState.moves.length
                 ? gameState.moves
-                    .map(move =>
-                      move.move.player === player ? move.totalScore : 0,
-                    )
-                    .reduce((prev, curr) => prev + curr)
+                  .map(move =>
+                    move.move.player === player ? move.totalScore : 0,
+                  )
+                  .reduce((prev, curr) => prev + curr)
                 : 0}
             </div>
           </React.Fragment>
