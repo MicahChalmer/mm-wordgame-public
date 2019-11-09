@@ -28,17 +28,7 @@ import { useState, useReducer } from "react";
 
 afterEach(cleanup);
 
-it("renders without crashing", () => {
-  render(
-    <Game
-      gameState={gameStateVisibleToPlayer(basicStartingState, 0)}
-      dispatch={x => x}
-      cellBackground={() => null}
-    />,
-  );
-});
-
-export const LocalGame = React.forwardRef(function LocalGame(
+const LocalGame = React.forwardRef(function LocalGame(
   props: { initialState: GameState; playerLock?: number },
   ref: React.Ref<{}>,
 ) {
@@ -383,7 +373,7 @@ const AdvancingGame = React.forwardRef(function AdvancingGame(
   return (
     <Game
       cellBackground={() => null}
-      dispatch={() => {}}
+      dispatch={() => { }}
       gameState={props.states[stateIdx]}
     />
   );

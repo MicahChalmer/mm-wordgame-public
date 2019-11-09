@@ -7,18 +7,18 @@
   },
   "dependencies": {
     "@types/shuffle-array": "0.0.28",
-    "immer": "^4.0.0",
+    "immer": "^5.0.0",
     "shuffle-array": "^1.0.1"
   },
   "devDependencies": {
-    "@types/jest": "^24.0.18",
-    "@typescript-eslint/eslint-plugin": "^2.3.0",
-    "@typescript-eslint/parser": "^2.3.0",
+    "@types/jest": "^24.0.22",
+    "@typescript-eslint/eslint-plugin": "^2.6.1",
+    "@typescript-eslint/parser": "^2.6.1",
     "jest": "^24.9.0",
-    "prettier": "^1.18.2",
+    "prettier": "^1.19.0",
     "ts-jest": "^24.1.0",
-    "typescript": "^3.6.3",
-    "webpack": "^4.40.2"
+    "typescript": "^3.7.2",
+    "webpack": "^4.41.2"
   },
   "eslintConfig": {
     "parser": "@typescript-eslint/parser",
