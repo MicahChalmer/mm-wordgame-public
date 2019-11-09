@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "packages": true
+    },
+    "eslint.enable": true
+}

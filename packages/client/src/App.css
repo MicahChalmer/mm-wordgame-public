@@ -1,0 +1,41 @@
+.instruction {
+  font-style: italic;
+  color: #880000;
+}
+
+.non-word {
+  font-weight: bold;
+  color: #ff0000;
+}
+
+.word {
+  font-weight: bold;
+  color: #008800;
+}
+
+body {
+  background-color: #aaaa99;
+  overflow: hidden;
+}
+
+button {
+  margin: 4px;
+  padding: 1em;
+  font-size: 110%;
+  font-family: inherit;
+  border-radius: 10px;
+  border-color: black;
+}
+
+button:active {
+  background-color: #777799;
+}
+
+button:disabled {
+  color: #888888;
+  background-color: #bbbbbb;
+}
+
+.arrowUi {
+  font-family: "Gothic A1", sans-serif;
+}

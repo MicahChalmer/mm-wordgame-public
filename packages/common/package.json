@@ -1,0 +1,37 @@
+{
+  "name": "mm-wordgame-common",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "test": "jest"
+  },
+  "dependencies": {
+    "@types/shuffle-array": "0.0.28",
+    "immer": "^4.0.0",
+    "shuffle-array": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.18",
+    "@typescript-eslint/eslint-plugin": "^2.3.0",
+    "@typescript-eslint/parser": "^2.3.0",
+    "jest": "^24.9.0",
+    "prettier": "^1.18.2",
+    "ts-jest": "^24.1.0",
+    "typescript": "^3.6.3",
+    "webpack": "^4.40.2"
+  },
+  "eslintConfig": {
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "ecmaVersion": 2019,
+      "project": "./tsconfig.json"
+    },
+    "env": {
+      "browser": true,
+      "node": true
+    },
+    "extends": [
+      "../../eslintConfig.defaults.js"
+    ]
+  }
+}

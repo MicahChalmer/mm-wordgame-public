@@ -1,0 +1,308 @@
+service: mm-wordgame-server
+
+frameworkVersion: ">=1.1.0 <2.0.0"
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  region: us-east-1
+  stage: ${opt:stage, 'development'}
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
+    COGNITO_ARN: { "Fn::GetAtt": ["MMWordgameCognitoUserPool", "Arn"] }
+    COGNITO_USER_POOL_ID: { "Ref": "MMWordgameCognitoUserPool" }
+    COGNITO_USER_POOL_CLIENT_ID: { "Ref": "MMWordgameCognitoUserPoolClient" }
+    WORDLISTS_BUCKET: { "Ref": "S3BucketWordLists" }
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: { "Fn::GetAtt": ["MMWordgameDynamoDbTable", "Arn"] }
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+      Resource:
+        {
+          "Fn::Join":
+            [
+              "",
+              [
+                { "Fn::GetAtt": ["MMWordgameDynamoDbTable", "Arn"] },
+                "/index/*",
+              ],
+            ],
+        }
+    - Effect: Allow
+      Action:
+        - cognito-idp:ListUsers
+      Resource: ${self:provider.environment.COGNITO_ARN}
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+      Resource:
+        - {
+            "Fn::Join":
+              ["", [{ "Fn::GetAtt": ["S3BucketWordLists", "Arn"] }, "/*"]],
+          }
+    - Effect: Allow
+      Action:
+        - s3:ListBucket
+      Resource: { "Fn::GetAtt": ["S3BucketWordLists", "Arn"] }
+functions:
+  gameList:
+    handler: src/gameList.gameList
+    events:
+      - http:
+          path: api/gameList/{userId}
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: { "Ref": "MMWGCognitoApiGatewayAuthorizer" }
+          request:
+            parameters:
+              paths:
+                userId: true
+  newGameData:
+    handler: src/newGame.newGameData
+    events:
+      - http:
+          path: api/newGameData
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: { "Ref": "MMWGCognitoApiGatewayAuthorizer" }
+  newGame:
+    handler: src/newGame.newGame
+    events:
+      - http:
+          path: api/newGame
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: { "Ref": "MMWGCognitoApiGatewayAuthorizer" }
+  getWordSet:
+    handler: src/getWordSet.getWordSet
+    events:
+      - http:
+          path: api/getWordSet/{wordSetName}
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: { "Ref": "MMWGCognitoApiGatewayAuthorizer" }
+          request:
+            parameters:
+              paths:
+                wordSetName: true
+  gameWSConnect:
+    handler: src/gameWS.gameWSConnect
+    events:
+      - websocket:
+          route: $connect
+          authorizer:
+            name: gameWSAuth
+            identitySource:
+              - route.request.querystring.Authorization
+  gameWSDisconnect:
+    handler: src/gameWS.gameWSDisconnect
+    events:
+      - websocket:
+          route: $disconnect
+  gameWSHandleGameAction:
+    handler: src/gameWS.gameWSHandleGameAction
+    events:
+      - websocket:
+          route: gameAction
+  gameWSHandleRefresh:
+    handler: src/gameWS.gameWSHandleRefresh
+    events:
+      - websocket:
+          route: refresh
+  gameWSHandleDefault:
+    handler: src/gameWS.gameWSHandleDefault
+    events:
+      - websocket:
+          route: $default
+  gameWSAuth:
+    handler: src/gameWS.gameWSAuth
+resources:
+  Resources:
+    MMWordgameDynamoDbTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+          - AttributeName: gameId
+            AttributeType: S
+          - AttributeName: connectionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        GlobalSecondaryIndexes:
+          - IndexName: ConnectionsByGame
+            KeySchema:
+              - AttributeName: gameId
+                KeyType: HASH
+              - AttributeName: connectionId
+                KeyType: RANGE
+            Projection:
+              NonKeyAttributes:
+                - userId
+              ProjectionType: INCLUDE
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+    GatewayResponseDefault4XX:
+      Type: "AWS::ApiGateway::GatewayResponse"
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: "ApiGatewayRestApi"
+    S3BucketWordLists:
+      Type: "AWS::S3::Bucket"
+      DeletionPolicy: Retain
+      Properties:
+        AccessControl: Private
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          IgnorePublicAcls: true
+          BlockPublicPolicy: true
+          RestrictPublicBuckets: true
+    MMWordgameCognitoUserPool:
+      Type: "AWS::Cognito::UserPool"
+      DeletionPolicy: Retain
+      Properties:
+        UserPoolName: "mm-wordgame-userpool-${self:provider.stage}"
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireUppercase: true
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+        Schema:
+          - Name: "sub"
+            AttributeDataType: "String"
+            DeveloperOnlyAttribute: false
+            Mutable: false
+            Required: true
+            StringAttributeConstraints:
+              MinLength: "1"
+              MaxLength: "2048"
+          - Name: "name"
+            AttributeDataType: "String"
+            DeveloperOnlyAttribute: false
+            Mutable: true
+            Required: true
+            StringAttributeConstraints:
+              MinLength: "0"
+              MaxLength: "2048"
+          - Name: "email"
+            AttributeDataType: "String"
+            DeveloperOnlyAttribute: false
+            Mutable: true
+            Required: true
+            StringAttributeConstraints:
+              MinLength: "0"
+              MaxLength: "2048"
+          - Name: "email_verified"
+            AttributeDataType: "Boolean"
+            DeveloperOnlyAttribute: false
+            Mutable: true
+            Required: false
+          - Name: "updated_at"
+            AttributeDataType: "Number"
+            DeveloperOnlyAttribute: false
+            Mutable: true
+            Required: false
+            NumberAttributeConstraints:
+              MinValue: "0"
+        AutoVerifiedAttributes:
+          - email
+        UsernameAttributes:
+          - email
+        EmailVerificationMessage: "Your verification code is {####}. "
+        EmailVerificationSubject: "Your verification code for Micah and Melissa's Word Game"
+        MfaConfiguration: "OFF"
+        EmailConfiguration:
+          EmailSendingAccount: "COGNITO_DEFAULT"
+        AdminCreateUserConfig:
+          AllowAdminCreateUserOnly: false
+          UnusedAccountValidityDays: 90
+          InviteMessageTemplate:
+            EmailMessage: "Your username is {username} and temporary password is {####}. "
+            EmailSubject: "Your temporary password"
+    MMWordgameCognitoUserPoolClient:
+      Type: "AWS::Cognito::UserPoolClient"
+      Properties:
+        UserPoolId: { "Ref": "MMWordgameCognitoUserPool" }
+        ClientName: "mm-wordgame-userpoolclient-${self:provider.stage}"
+        GenerateSecret: false
+        ReadAttributes:
+          - "email"
+          - "email_verified"
+          - "name"
+        WriteAttributes:
+          - "email"
+          - "name"
+    MMWGCognitoApiGatewayAuthorizer:
+      DependsOn:
+        - ApiGatewayRestApi
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        AuthorizerResultTtlInSeconds: 300
+        IdentitySource: method.request.header.Authorization
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        Type: COGNITO_USER_POOLS
+        Name: MMWGCognitoApiGatewayAuthorizer-${self:provider.stage}
+        ProviderARNs:
+          - Fn::Join:
+              - ""
+              - - "arn:aws:cognito-idp:"
+                - ${self:provider.region}
+                - ":"
+                - Ref: AWS::AccountId
+                - ":userpool/"
+                - Ref: MMWordgameCognitoUserPool
+  Outputs:
+    AwsRegion: { Value: "${self:provider.region}" }
+    CognitoUserPoolId: { Value: { Ref: MMWordgameCognitoUserPool } }
+    CognitoUserPoolClientId: { Value: { Ref: MMWordgameCognitoUserPoolClient } }
+    WordListsBucket: { Value: { Ref: S3BucketWordLists } }
+
+plugins:
+  - serverless-webpack
+  - serverless-export-env
+
+custom:
+  webpack:
+    includeModules:
+      forceExclude:
+        - aws-sdk

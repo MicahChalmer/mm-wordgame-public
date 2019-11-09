@@ -1,0 +1,5 @@
+/.webpack
+/.serverless
+/.env
+/stack-output/*
+!/stack-output/.gitkeep

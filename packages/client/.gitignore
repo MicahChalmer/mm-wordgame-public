@@ -1,0 +1,8 @@
+# testing
+/coverage
+
+# production
+/build
+
+# Don't check this into the code...
+public/wordlist.txt
