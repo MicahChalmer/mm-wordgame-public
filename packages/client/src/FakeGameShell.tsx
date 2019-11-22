@@ -8,13 +8,12 @@ import {
 } from "mm-wordgame-common/src/GameLogic";
 import { GameActionWithId } from "./AsyncGameClientLogic";
 import * as React from "react";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import {
   AsyncLocalGameImperativeHandle,
   AsyncLocalProgressGame,
 } from "./AsyncLocalProgressGame";
 import { inspiredWgBonusCellRenderBackground } from "./InspiredWgVisual";
-import { Auth } from "aws-amplify";
 import { inspiredWgNewGame } from "mm-wordgame-common/src/InspiredWg";
 
 export function LocalFakeAsyncGame(props: {
@@ -24,25 +23,34 @@ export function LocalFakeAsyncGame(props: {
 }): JSX.Element {
   const [actionSent, setActionSent] = useState<GameActionWithId | null>(null);
   const asyncGameRef = useRef<AsyncLocalGameImperativeHandle>(null);
-  const notify = (): void => {
+  const notify = useCallback((): void => {
     if (asyncGameRef.current)
       asyncGameRef.current.receiveGameState(
         gameStateVisibleToPlayer(props.gameState, props.player),
       );
-  };
+  }, [props.gameState, props.player]);
 
+  const [debugAsyncScenarios, setDebugAsyncScenarios] = useState(false);
   const sendAction = (action: GameActionWithId): void => {
-    setActionSent(action);
+    if (debugAsyncScenarios) setActionSent(action);
+    else {
+      const result = props.onPerformAction(action);
+      setActionSent(null);
+      if (asyncGameRef.current)
+        asyncGameRef.current.receiveGameState(
+          gameStateVisibleToPlayer(result.newState, props.player),
+        );
+    }
   };
 
-  const returnAction = (): void => {
+  const returnAction = useCallback((): void => {
     if (!actionSent) return;
     const result = props.onPerformAction(actionSent);
     setActionSent(null);
 
     if (asyncGameRef.current)
       asyncGameRef.current.receiveGameState(result.newState);
-  };
+  }, [actionSent, props]);
 
   const failAction = (): void => {
     if (!actionSent) return;
@@ -50,6 +58,14 @@ export function LocalFakeAsyncGame(props: {
   };
 
   const [showDebug, setShowDebug] = useState(false);
+
+  useEffect(() => {
+    if (!debugAsyncScenarios && actionSent) returnAction();
+  }, [debugAsyncScenarios, actionSent, returnAction]);
+
+  useEffect(() => {
+    if (!debugAsyncScenarios) notify();
+  }, [notify, debugAsyncScenarios]);
 
   return (
     <div
@@ -65,14 +81,6 @@ export function LocalFakeAsyncGame(props: {
       }}
     >
       <div style={{ flexGrow: 0 }}>
-        {actionSent ? `Action sent: ${actionSent.actionType}` : ""}
-        <button disabled={!actionSent} onClick={returnAction}>
-          Return
-        </button>
-        <button disabled={!actionSent} onClick={failAction}>
-          Fail
-        </button>
-        <button onClick={notify}>Notify</button>
         <label>
           <input
             type="checkbox"
@@ -80,6 +88,29 @@ export function LocalFakeAsyncGame(props: {
           />
           Show debug
         </label>
+        {showDebug ? (
+          <>
+            <label>
+              <input
+                type="checkbox"
+                onChange={e => setDebugAsyncScenarios(e.target.checked)}
+              />
+              Debug Async Scnearios
+            </label>
+            {debugAsyncScenarios ? (
+              <>
+                {actionSent ? `Action sent: ${actionSent.actionType}` : ""}
+                <button disabled={!actionSent} onClick={returnAction}>
+                  Return
+                </button>
+                <button disabled={!actionSent} onClick={failAction}>
+                  Fail
+                </button>
+                <button onClick={notify}>Notify</button>
+              </>
+            ) : null}
+          </>
+        ) : null}
       </div>
       <div style={{ position: "relative", flexGrow: 1 }}>
         <AsyncLocalProgressGame
@@ -99,6 +130,7 @@ export function LocalFakeAsyncGame(props: {
 
 function LocalFakeAsyncGameSet(props: {
   initialState: GameState;
+  children?: React.ReactNode;
 }): JSX.Element {
   const [gameState, setGameState] = React.useState(props.initialState);
   const [visiblePlayer, setVisiblePlayer] = useState(0);
@@ -112,6 +144,8 @@ function LocalFakeAsyncGameSet(props: {
   return (
     <>
       <div style={{ position: "fixed", right: 0, top: 0, zIndex: 2 }}>
+        {props.children}
+        Show view as player:
         <select
           onChange={event => setVisiblePlayer(parseInt(event.target.value))}
         >
@@ -121,7 +155,6 @@ function LocalFakeAsyncGameSet(props: {
             </option>
           ))}
         </select>
-        <button onClick={() => Auth.signOut()}>Log Out</button>
       </div>
       {gameState.players.map((name, idx) => (
         <div
@@ -144,16 +177,39 @@ function LocalFakeAsyncGameSet(props: {
 
 export function FakeGameShell(): React.ReactElement {
   const [wordSet, setWordSet] = useState(new Set<string>());
-
-  React.useEffect(() => {
-    const wordSetAbort: AbortController = new AbortController();
-    fetch("/wordlist.txt", { method: "get", signal: wordSetAbort.signal })
-      .then(r => r.text())
-      .then(t => {
-        if (!wordSetAbort.signal.aborted)
-          setWordSet(new Set(t.split("\n").filter(s => s)));
-      });
-    return () => wordSetAbort.abort();
+  const [wordlistError, setWordlistError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const readWordList = useCallback(() => {
+    setWordlistError("");
+    if (
+      !fileInputRef.current ||
+      !fileInputRef.current.files ||
+      !fileInputRef.current.files.length
+    ) {
+      setWordlistError("Need to choose a word list file");
+      return;
+    }
+    const file = fileInputRef.current.files[0];
+    if (!file) {
+      setWordlistError("No file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const s = ev.target ? ev.target.result : null;
+      if (s)
+        setWordSet(
+          new Set(
+            s
+              .toString()
+              .toLowerCase()
+              .split("\n")
+              .filter(s => s),
+          ),
+        );
+      else setWordlistError("No word list found in file " + file.name);
+    };
+    reader.readAsText(file);
   }, []);
 
   const initialState: GameState = React.useMemo(
@@ -172,10 +228,36 @@ export function FakeGameShell(): React.ReactElement {
   );
 
   return (
-    <React.Fragment>
+    <>
       {wordSet.size ? (
-        <LocalFakeAsyncGameSet initialState={initialState} />
-      ) : null}
-    </React.Fragment>
+        <LocalFakeAsyncGameSet initialState={initialState}>
+          <button
+            onClick={() => {
+              setWordSet(new Set());
+            }}
+          >
+            Abort
+          </button>
+        </LocalFakeAsyncGameSet>
+      ) : (
+        <>
+          <p>
+            So, to play the game you need a word list. I&apos;m not publishing
+            the word list - try{" "}
+            <a href="https://www.google.com/search?q=sowpods+txt+file ">
+              googling around for one
+            </a>
+            . When you have a URL for a word list (one word per line) put it
+            here to start the game. This version only plays locally in the
+            browser - no back end at all.
+          </p>
+          <label>
+            Word list URL: <input type="file" ref={fileInputRef} />
+          </label>
+          <button onClick={readWordList}>Get Word List and Start Game</button>
+          <div className="non-word">{wordlistError}</div>
+        </>
+      )}
+    </>
   );
 }

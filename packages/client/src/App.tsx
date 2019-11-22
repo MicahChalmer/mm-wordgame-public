@@ -10,7 +10,6 @@ import {
 } from "aws-amplify-react";
 import Amplify, { Auth } from "aws-amplify";
 import { Route, Switch, RouteComponentProps } from "react-router";
-import { Link } from "react-router-dom";
 import { CognitoUser } from "@aws-amplify/auth";
 import { CognitoUserAttribute } from "amazon-cognito-identity-js";
 import { GamePicker } from "./GamePicker";
@@ -55,46 +54,46 @@ function useUserInfo(
   return userData;
 }
 
-function App(props: {
-  authState: string;
-  authData?: CognitoUser;
-}): ReactElement {
+function authWrap<P>(
+  app: React.ComponentType<P & { authState: string; authData?: CognitoUser }>,
+): React.ComponentType<P> {
+  return withAuthenticator(app, false, [
+    // This isn't an array rendered in - the components don't need keys
+    /* eslint-disable react/jsx-key */
+    <SignIn />,
+    <ConfirmSignIn />,
+    <RequireNewPassword />,
+    <ForgotPassword />,
+    /* eslint-enable react/jsx-key */
+  ]);
+}
+
+export default function App(): ReactElement {
   const signOut = (): void => {
     Auth.signOut().catch(e => {
       console.log("Error in sign out: ", e);
     });
   };
 
-  const signedInUserInfo = useUserInfo(props.authData);
-
-  return (
-    <API_ENDPOINT_CONTEXT.Provider
-      value={{ rest: API_ROOT_URL, ws: WS_API_ROOT_URL }}
-    >
+  const SignedInAppAuth = authWrap(function SignedInApp(authProps: {
+    authState: string;
+    authData?: CognitoUser;
+  }) {
+    const signedInUserInfo = useUserInfo(authProps.authData);
+    return (
       <Switch>
         <Route
           path="/game/:gameId"
-          render={(props: RouteComponentProps<{ gameId: string }>) => (
-            <GameFromServer gameId={props.match.params.gameId} />
-          )}
-        />
-        <Route
-          path="/fakeGameShell"
-          render={() => (
-            <>
-              <div>
-                <Link to="/">Back home</Link>
-              </div>
-              <FakeGameShell />
-            </>
+          render={(routeProps: RouteComponentProps<{ gameId: string }>) => (
+            <GameFromServer gameId={routeProps.match.params.gameId} />
           )}
         />
         <Route
           path="/newGame"
           render={() => (
             <>
-              {props.authData ? (
-                <NewGame userId={props.authData.getUsername()} />
+              {authProps.authData ? (
+                <NewGame userId={authProps.authData.getUsername()} />
               ) : (
                 <ReactLoading type="balls" />
               )}
@@ -110,8 +109,8 @@ function App(props: {
                 {signedInUserInfo.email}&gt;:
                 <button onClick={signOut}>Sign Out</button>{" "}
               </div>
-              {props.authData ? (
-                <GamePicker userId={props.authData.getUsername()} />
+              {authProps.authData ? (
+                <GamePicker userId={authProps.authData.getUsername()} />
               ) : (
                 <ReactLoading type="cubes" />
               )}
@@ -119,16 +118,17 @@ function App(props: {
           )}
         />
       </Switch>
+    );
+  });
+
+  return (
+    <API_ENDPOINT_CONTEXT.Provider
+      value={{ rest: API_ROOT_URL, ws: WS_API_ROOT_URL }}
+    >
+      <Switch>
+        <Route path="/fakeGameShell" render={() => <FakeGameShell />} />
+        <Route path="/" render={() => <SignedInAppAuth />} />
+      </Switch>
     </API_ENDPOINT_CONTEXT.Provider>
   );
 }
-
-export default withAuthenticator(App, false, [
-  // This isn't an array rendered in - the components don't need keys
-  /* eslint-disable react/jsx-key */
-  <SignIn />,
-  <ConfirmSignIn />,
-  <RequireNewPassword />,
-  <ForgotPassword />,
-  /* eslint-enable react/jsx-key */
-]);

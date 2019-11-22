@@ -110,7 +110,6 @@
   "prettier": {
     "trailingComma": "all"
   },
-  "proxy": "http://localhost:4000/",
   "rescripts": [
     [
       "use-eslint-config",
