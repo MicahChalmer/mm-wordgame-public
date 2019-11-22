@@ -339,7 +339,7 @@ it("does not allow submitting moves when it's not your turn", () => {
     actionType: GameActionType.PLAY_WORD,
     player: 0,
     tiles: tilesFromTray(
-      "pups",
+      "pup",
       { x: 7, y: 7 },
       false,
       getTrayOfPlayer(basicStartingState, 0),
@@ -350,13 +350,17 @@ it("does not allow submitting moves when it's not your turn", () => {
     <LocalGame initialState={gs} ref={gameRef} playerLock={0} />,
   );
   const boardEl = renderedGame.getByTestId("board");
-  fireEvent.click(renderedGame.getByTestId("square-10-8"));
+  fireEvent.click(renderedGame.getByTestId("square-10-7"));
+  fireEvent.keyDown(boardEl, { key: "p" });
+  fireEvent.keyDown(boardEl, { key: "l" });
   fireEvent.keyDown(boardEl, { key: "e" });
-  fireEvent.keyDown(boardEl, { key: "x" });
 
   expect(
     (renderedGame.getByText("Go") as HTMLButtonElement).disabled,
   ).toBeTruthy();
+
+  fireEvent.keyDown(boardEl, { key: "Enter" });
+  expect(renderedGame.queryByTestId("failureMessage")).toBeNull();
 });
 
 const AdvancingGame = React.forwardRef(function AdvancingGame(
@@ -373,7 +377,7 @@ const AdvancingGame = React.forwardRef(function AdvancingGame(
   return (
     <Game
       cellBackground={() => null}
-      dispatch={() => { }}
+      dispatch={() => {}}
       gameState={props.states[stateIdx]}
     />
   );
