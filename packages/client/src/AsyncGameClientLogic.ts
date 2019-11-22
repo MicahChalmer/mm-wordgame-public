@@ -132,9 +132,7 @@ export function localAsyncGameStateReducer(
   if (illegalReasons.length) {
     return {
       ...state,
-      lastFailureReason: `Cannot ${event}: ${illegalReasons
-        .map(ir => ir.description)
-        .join(", ")}`,
+      lastFailureReason: illegalReasons.map(ir => ir.description).join(", "),
     };
   } else return newState;
 }
