@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@types/shuffle-array": "0.0.28",
-    "immer": "^5.0.0",
+    "immer": "^9.0.6",
     "shuffle-array": "^1.0.1"
   },
   "devDependencies": {
