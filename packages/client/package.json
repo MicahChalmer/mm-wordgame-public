@@ -10,7 +10,7 @@
     "eslint-plugin-jest": "^23.0.3",
     "fast-memoize": "^2.5.1",
     "formik": "^2.0.3",
-    "immer": "^5.0.0",
+    "immer": "^9.0.6",
     "mm-wordgame-common": "0.0.0",
     "pretty-format": "^24.9.0",
     "react": "^16.11.0",
