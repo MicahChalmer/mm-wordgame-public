@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "aws-lambda": "^1.0.5",
-    "aws-sdk": "^2.568.0",
+    "aws-sdk": "^2.814.0",
     "fast-memoize": "^2.5.1",
     "middy": "^0.30.4",
     "node-jose": "^1.1.3",
